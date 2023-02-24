@@ -1,28 +1,57 @@
+#!/bin/python3
 # ======================================================================
 # Author: Tobias Meisel (meisto)
 # Creation Date: Fri 17 Feb 2023 01:30:52 AM CET
 # Description: -
 # ======================================================================
+import argparse
 import json
 import os
 import re
+import sys
 
 import easyocr
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog = "srdextractor",
+        description = "Extract elements from SRD screengrabs."
+    )
+    parser.add_argument(
+        "-f", "--files",
+        action = "append",
+        required = True,
+        nargs = "+",
+    )
+
+    args = parser.parse_args()
+    files = args.files[0]
+
+    for f in files:
+        if not os.path.exists(f) or not os.path.isfile(f):
+            print( "[ERROR] Could not open file '" + f + "'.")
+            sys.exit(1)
+
+
     image = "test.jpg"
-    lang = "en"
 
     reader = easyocr.Reader(['en'])
-    result = reader.readtext('test.jpg')
 
-    for i, c in enumerate(result):
-        if c[2] > 0.95: continue
+    content = []
 
-        print("[DOUBT]", end=" ")
-        if i > 0: print("...", result[i-1][1][-30:], end=" ")
-        print("|>", c[1], "<|", end=" ")
-        if i < len(result) - 1: print(result[i+1][1][:30], "...")
+    for f in files:
+        print("[INFO] Start reading file '" + f + "'.")
+        result = reader.readtext(f)
+
+        for i, c in enumerate(result):
+            if c[2] > 0.95: continue
+
+            print("[DOUBT]", end=" ")
+            if i > 0: print("...", result[i-1][1][-30:], end=" ")
+            print("|>", c[1], "<|", end=" ")
+            if i < len(result) - 1: print(result[i+1][1][:30], "...")
+
+        content = content + result
 
     ## Monster entries in the SRD have the following layout:
     # Please note that this is a structural not a logical partition
@@ -83,7 +112,7 @@ if __name__ == "__main__":
     )
 
     # Merge and clean input
-    con = map(lambda a: a[1], result)
+    con = map(lambda a: a[1], content)
     con = "\n".join(con).replace("_", ".")
 
     # Print out what has been read for regex debugging
@@ -186,3 +215,6 @@ if __name__ == "__main__":
     file_path = os.path.join(os.getcwd(), "data", "creatures", file_name)
     with open(file_path, mode='w') as f:
         json.dump(file_content, f, indent="\t")
+
+
+    print("[INFO] Script finished. Output was written to '" + file_path + "'.")
